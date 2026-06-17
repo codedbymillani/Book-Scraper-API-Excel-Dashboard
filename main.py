@@ -3,9 +3,14 @@ import requests
 from bs4 import BeautifulSoup
 
 app = FastAPI(
-    title="Market Intelligence API", 
-    description="A production-grade RESTful API that handles dynamic pagination."
+    title="Automated Bookstore Scraper API",
+    description=(
+        "A FastAPI-driven web service that scrapes listings from an online bookstore and "
+        "returns structured book data. Change the page parameter to pull listings from "
+        "different sections of the catalog and view updated results in real time."
+    )
 )
+
 
 @app.get("/api/v1/books")
 def get_scraped_books(pages: int = Query(default=1, ge=1, le=10, description="The number of pages to scrape")):
