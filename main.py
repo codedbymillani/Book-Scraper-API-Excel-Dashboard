@@ -6,21 +6,15 @@ from bs4 import BeautifulSoup
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.utils import get_column_letter
+from openpyxl.chart import BarChart, Reference
 
 app = FastAPI(
-
     title="Automated Bookstore Scraper API",
-
     description=(
-
         "A FastAPI-driven web service that scrapes listings from an online bookstore and "
-
         "returns structured book data. Change the page parameter to pull listings from "
-
         "different sections of the catalog and view updated results in real time."
-
     )
-
 )
 
 # HELPER FUNCTION: Reusable scraping logic
@@ -47,11 +41,10 @@ def scrape_books_data(pages: int):
             })
     return books_list
 
-# ENDPOINT 1: Returns raw JSON (Your existing endpoint)
+# ENDPOINT 1: Returns raw JSON
 @app.get("/api/v1/books")
 def get_scraped_books(pages: int = Query(default=1, ge=1, le=10, description="The number of pages to scrape")):
     books = scrape_books_data(pages)
-    # Format prices back to strings with symbols just for display in JSON
     formatted_books = [{"title": b["title"], "price": f"£{b['price']:.2f}"} for b in books]
     return {
         "status": "success", 
@@ -107,17 +100,45 @@ def download_excel_dashboard(pages: int = Query(default=1, ge=1, le=10, descript
             cell_title.fill = zebra_fill
             cell_price.fill = zebra_fill
 
-    # Summary Row Formulas
-    last_row = len(books) + 1
-    summary_start = last_row + 2
+    # 🛠️ FIXED: Dynamic calculation of data bounds
+    total_data_rows = len(books)
+    actual_last_data_row = total_data_rows + 1 # +1 accounts for the header row
     
+    summary_start = actual_last_data_row + 2 # Leave a blank row spacer
+    
+    # Write Total Items Formula
     ws.cell(row=summary_start, column=1, value="Total Unique Items Logged").font = Font(name="Segoe UI", bold=True)
-    ws.cell(row=summary_start, column=2, value=f"=COUNTA(B2:B{last_row})").font = Font(name="Segoe UI", bold=True)
+    count_cell = ws.cell(row=summary_start, column=2, value=f"=COUNTA(B2:B{actual_last_data_row})")
+    count_cell.font = Font(name="Segoe UI", bold=True)
+    count_cell.alignment = Alignment(horizontal="right")
     
+    # Write Average Value Formula
     ws.cell(row=summary_start+1, column=1, value="Average Book Value").font = Font(name="Segoe UI", bold=True)
-    avg_cell = ws.cell(row=summary_start+1, column=2, value=f"=AVERAGE(B2:B{last_row})")
+    avg_cell = ws.cell(row=summary_start+1, column=2, value=f"=AVERAGE(B2:B{actual_last_data_row})")
     avg_cell.font = Font(name="Segoe UI", bold=True)
     avg_cell.number_format = '"£"#,##0.00'
+    avg_cell.alignment = Alignment(horizontal="right")
+
+    # 📊 ADDED: Programmatic Generation of the Visual Bar Chart
+    chart = BarChart()
+    chart.type = "col"
+    chart.style = 10
+    chart.title = "Book Price Distribution Landscape"
+    chart.y_axis.title = "Price (GBP)"
+    chart.x_axis.title = "Books"
+    
+    # Tell the chart to reference the numerical price data column
+    data_ref = Reference(ws, min_col=2, min_row=1, max_row=actual_last_data_row)
+    # Tell the chart to use titles from column 1 as data labels
+    cats_ref = Reference(ws, min_col=1, min_row=2, max_row=actual_last_data_row)
+    
+    chart.add_data(data_ref, titles_from_data=True)
+    chart.set_categories(cats_ref)
+    chart.legend = None # Remove cluttering legend since it's a single data series
+    
+    # Position chart on the right-hand side so it doesn't cover data rows
+    chart_placement_cell = "D2"
+    ws.add_chart(chart, chart_placement_cell)
 
     # Auto-adjust column widths based on longest string lengths
     for col in ws.columns:
