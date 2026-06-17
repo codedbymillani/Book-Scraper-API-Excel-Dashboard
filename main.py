@@ -120,10 +120,14 @@ def download_excel_dashboard(pages: int = Query(default=1, ge=1, le=10, descript
     avg_cell.alignment = Alignment(horizontal="right")
 
     # 📊 ADDED: Programmatic Generation of the Visual Bar Chart
+    # 📊 UPDATED: Programmatic Generation of the Visual Bar Chart with Explicit Title Rendering
     chart = BarChart()
     chart.type = "col"
     chart.style = 10
+    
+    # Force Excel to explicitly render the title text layout
     chart.title = "Book Price Distribution Landscape"
+    
     chart.y_axis.title = "Price (GBP)"
     chart.x_axis.title = "Books"
     
@@ -134,7 +138,11 @@ def download_excel_dashboard(pages: int = Query(default=1, ge=1, le=10, descript
     
     chart.add_data(data_ref, titles_from_data=True)
     chart.set_categories(cats_ref)
-    chart.legend = None # Remove cluttering legend since it's a single data series
+    
+    # Explicit layout settings to prevent title stripping
+    chart.legend = None 
+    chart.width = 18   # Making it slightly wider so names fit better
+    chart.height = 10  # Giving it clean vertical room
     
     # Position chart on the right-hand side so it doesn't cover data rows
     chart_placement_cell = "D2"
