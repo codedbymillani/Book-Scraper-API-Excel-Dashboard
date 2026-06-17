@@ -100,36 +100,38 @@ def download_excel_dashboard(pages: int = Query(default=1, ge=1, le=10, descript
             cell_title.fill = zebra_fill
             cell_price.fill = zebra_fill
 
-    # 🛠️ FIXED: Dynamic calculation of data bounds
-    total_data_rows = len(books)
-    actual_last_data_row = total_data_rows + 1 # +1 accounts for the header row
+    # Calculate metrics inside Python for instant-glance evaluation
+    total_items = len(books)
+    actual_last_data_row = total_items + 1 # +1 accounts for the header row
+    
+    # Python Math Logic
+    prices_array = [book["price"] for book in books]
+    calculated_avg = sum(prices_array) / total_items if total_items > 0 else 0
     
     summary_start = actual_last_data_row + 2 # Leave a blank row spacer
     
-    # Write Total Items Formula
+    # Write Total Items Value directly (No formula fallback needed for instant view)
     ws.cell(row=summary_start, column=1, value="Total Unique Items Logged").font = Font(name="Segoe UI", bold=True)
-    count_cell = ws.cell(row=summary_start, column=2, value=f"=COUNTA(B2:B{actual_last_data_row})")
+    count_cell = ws.cell(row=summary_start, column=2, value=total_items)
     count_cell.font = Font(name="Segoe UI", bold=True)
     count_cell.alignment = Alignment(horizontal="right")
     
-    # Write Average Value Formula
+    # Write Average Value directly as a float number so Excel styles it right away
     ws.cell(row=summary_start+1, column=1, value="Average Book Value").font = Font(name="Segoe UI", bold=True)
-    avg_cell = ws.cell(row=summary_start+1, column=2, value=f"=AVERAGE(B2:B{actual_last_data_row})")
+    avg_cell = ws.cell(row=summary_start+1, column=2, value=calculated_avg)
     avg_cell.font = Font(name="Segoe UI", bold=True)
     avg_cell.number_format = '"£"#,##0.00'
     avg_cell.alignment = Alignment(horizontal="right")
 
-    # 📊 ADDED: Programmatic Generation of the Visual Bar Chart
-    # 📊 UPDATED: Programmatic Generation of the Visual Bar Chart with Explicit Title Rendering
+    # 📊 Programmatic Generation of the Visual Bar Chart with Titles Fixed
     chart = BarChart()
     chart.type = "col"
-    chart.style = 10
+    chart.style = 11  # Uses a cleaner modern theme style
     
-    # Force Excel to explicitly render the title text layout
+    # Set titles explicitly
     chart.title = "Book Price Distribution Landscape"
-    
     chart.y_axis.title = "Price (GBP)"
-    chart.x_axis.title = "Books"
+    chart.x_axis.title = "Books Listed"
     
     # Tell the chart to reference the numerical price data column
     data_ref = Reference(ws, min_col=2, min_row=1, max_row=actual_last_data_row)
@@ -139,10 +141,10 @@ def download_excel_dashboard(pages: int = Query(default=1, ge=1, le=10, descript
     chart.add_data(data_ref, titles_from_data=True)
     chart.set_categories(cats_ref)
     
-    # Explicit layout settings to prevent title stripping
+    # Adjust chart scaling size parameters so headers display completely
     chart.legend = None 
-    chart.width = 18   # Making it slightly wider so names fit better
-    chart.height = 10  # Giving it clean vertical room
+    chart.width = 22   
+    chart.height = 13  
     
     # Position chart on the right-hand side so it doesn't cover data rows
     chart_placement_cell = "D2"
